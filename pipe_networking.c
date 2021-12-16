@@ -2,30 +2,80 @@
 
 
 /*=========================
+  server_setup
+  args:
+
+  creates the WKP (upstream) and opens it, waiting for a
+  connection.
+
+  removes the WKP once a connection has been made
+
+  returns the file descriptor for the upstream pipe.
+  =========================*/
+int server_setup() {
+  int from_client = 0;
+  return from_client;
+}
+
+/*=========================
+  server_connect
+  args: int from_client
+
+  handles the subserver portion of the 3 way handshake
+
+  returns the file descriptor for the downstream pipe.
+  =========================*/
+int server_connect(int from_client) {
+  int to_client  = 0;
+  return to_client;
+}
+
+
+/*=========================
   server_handshake
   args: int * to_client
 
-  Performs the client side pipe 3 way handshake.
+  Performs the server side pipe 3 way handshake.
   Sets *to_client to the file descriptor to the downstream pipe.
 
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_handshake(int *to_client) {
-  mkfifo(WKP, 0777);
+  int b, from_client;
+  char buffer[HANDSHAKE_BUFFER_SIZE];
 
-  int from_client = open(WKP, O_RDONLY, 0777);
-  char pidName[HANDSHAKE_BUFFER_SIZE];
-  read(from_client, pidName, HANDSHAKE_BUFFER_SIZE);
-  printf("server got: %s\n", pidName);
+  printf("[server] handshake: making wkp\n");
+  b = mkfifo(WKP, 0600);
+  if ( b == -1 ) {
+    printf("mkfifo error %d: %s\n", errno, strerror(errno));
+    exit(-1);
+  }
+  //open & block
+  from_client = open(WKP, O_RDONLY, 0);
+  //remove WKP
   remove(WKP);
 
-  *to_client = open(pidName, O_WRONLY, 0777);
-  write(*to_client, ACK, HANDSHAKE_BUFFER_SIZE);
+  printf("[server] handshake: removed wkp\n");
+  //read initial message
+  b = read(from_client, buffer, sizeof(buffer));
+  printf("[server] handshake received: -%s-\n", buffer);
 
-  read(from_client, pidName, HANDSHAKE_BUFFER_SIZE);
-  printf("server got: %s\n", pidName);
 
-  printf("from_client file indice: %d\n", from_client);
+  *to_client = open(buffer, O_WRONLY, 0);
+  //create SYN_ACK message
+  srand(time(NULL));
+  int r = rand() % HANDSHAKE_BUFFER_SIZE;
+  sprintf(buffer, "%d", r);
+
+  write(*to_client, buffer, sizeof(buffer));
+  //rad and check ACK
+  read(from_client, buffer, sizeof(buffer));
+  int ra = atoi(buffer);
+  if (ra != r+1) {
+    printf("[server] handshake received bad ACK: -%s-\n", buffer);
+    exit(0);
+  }//bad response
+  printf("[server] handshake received: -%s-\n", buffer);
 
   return from_client;
 }
@@ -41,23 +91,40 @@ int server_handshake(int *to_client) {
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
-  char pidName[BUFFER_SIZE];
-  sprintf(pidName, "%d", getpid());
-  mkfifo(pidName, 0777);
 
-  *to_server = open(WKP, O_WRONLY, 0777);
-  write(*to_server, pidName, HANDSHAKE_BUFFER_SIZE);
+  int from_server;
+  char buffer[HANDSHAKE_BUFFER_SIZE];
+  char ppname[HANDSHAKE_BUFFER_SIZE];
 
-  char message[HANDSHAKE_BUFFER_SIZE];
-  int from_server = open(pidName, O_RDONLY, 0777);
-  read(from_server, message, HANDSHAKE_BUFFER_SIZE);
-  printf("client got: %s\n", message);
-  printf("client pid %d \n", getpid());
-  remove(pidName);
+  //make private pipe
+  printf("[client] handshake: making pp\n");
+  sprintf(ppname, "%d", getpid() );
+  mkfifo(ppname, 0600);
 
-  write(*to_server, ACK, HANDSHAKE_BUFFER_SIZE);
+  //send pp name to server
+  printf("[client] handshake: connecting to wkp\n");
+  *to_server = open( WKP, O_WRONLY, 0);
+  if ( *to_server == -1 ) {
+    printf("open error %d: %s\n", errno, strerror(errno));
+    exit(1);
+  }
 
-  printf("from_server file indice: %d\n", from_server);
-  
+  write(*to_server, ppname, sizeof(buffer));
+  //open and wait for connection
+  from_server = open(ppname, O_RDONLY, 0);
+
+  read(from_server, buffer, sizeof(buffer));
+  /*validate buffer code goes here */
+  printf("[client] handshake: received -%s-\n", buffer);
+
+  //remove pp
+  remove(ppname);
+  printf("[client] handshake: removed pp\n");
+
+  //send ACK to server
+  int r = atoi(buffer) + 1;
+  sprintf(buffer, "%d", r);
+  write(*to_server, buffer, sizeof(buffer));
+
   return from_server;
 }
