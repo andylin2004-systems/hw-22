@@ -12,6 +12,7 @@
 #define NETWORKING_H
 #define ACK "HOLA"
 #define WKP "mario"
+#define SECMSG "Damnit colleges why don't y'all want to accept me!?"
 
 #define HANDSHAKE_BUFFER_SIZE 10
 #define BUFFER_SIZE 1000
