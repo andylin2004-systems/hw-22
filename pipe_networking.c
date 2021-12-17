@@ -30,11 +30,13 @@ int server_setup() {
 int server_connect(int from_client) {
   char buffer[BUFFER_SIZE] = {0};
   read(from_client, buffer, sizeof(buffer));
+  printf("[server] handshake received: -%s-\n", buffer);
   int to_client = open(buffer, O_WRONLY, 0644);
   srand(time(NULL));
   sprintf(buffer, "%d", rand() % HANDSHAKE_BUFFER_SIZE);
   write(to_client, buffer, sizeof(buffer));
   read(from_client, buffer, sizeof(buffer));
+  printf("[server] handshake received: -%s-\n", buffer);
   return to_client;
 }
 
