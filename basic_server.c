@@ -14,9 +14,7 @@ int main() {
       
       while(1){
         char input[BUFFER_SIZE] = {0};
-        if (read(from_client, input, sizeof(input)) == 0){
-          break;
-        }
+        read(from_client, input, sizeof(input));
         int i;
         for (i = 0; i < BUFFER_SIZE && input[i]; i++)
         {
@@ -35,7 +33,6 @@ int main() {
           }
         }
         write(to_client, input, sizeof(input));
-        break;
       }
     }
   }
