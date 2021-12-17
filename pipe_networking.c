@@ -14,11 +14,7 @@
   =========================*/
 int server_setup() {
   mkfifo(WKP, 0644);
-  int from_client = open(WKP, O_RDONLY, 0644);
-  char buffer[BUFFER_SIZE] = {0};
-  read(from_client, buffer, sizeof(buffer));
-  server_connect(from_client);
-  close(from_client);
+  int from_client = open(WKP, O_RDONLY, 0);
   remove(WKP);
   return from_client;
 }
@@ -35,7 +31,9 @@ int server_connect(int from_client) {
   char buffer[BUFFER_SIZE] = {0};
   read(from_client, buffer, sizeof(buffer));
   int to_client = open(buffer, O_WRONLY, 0644);
-  write(to_client, SECMSG, sizeof(SECMSG));
+  srand(time(NULL));
+  sprintf(buffer, "%d", rand() % HANDSHAKE_BUFFER_SIZE);
+  write(to_client, buffer, sizeof(buffer));
   read(from_client, buffer, sizeof(buffer));
   return to_client;
 }
